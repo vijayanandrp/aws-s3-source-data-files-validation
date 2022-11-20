@@ -25,6 +25,16 @@ def get_logger(name):
     return logging.getLogger(name)
 
 
+'''def compare_dict(x, y):
+    log.info(y)
+    shared_items = {k: x[k] for k in x if k in y and x[k] == y[k]}
+    if len(shared_items) == len(x) == len(y):
+        return True
+    else:
+        return False '''
+column_size = 73
+column_metadata = [{"index": 1, "name": "Payer Name"}, {"index": 2, "name": "File Type"}]
+
 
 def compare_order(expected_order, received_columns):
     for column in received_columns:
@@ -42,7 +52,11 @@ def compare_order(expected_order, received_columns):
     return True
 
 
-
+def compare_size(received_columns):
+    if len(received_columns) == column_size:
+        return True
+    else:
+        return False
 
 
 def lambda_handler(event: dict = None, context: dict = None):
@@ -80,7 +94,7 @@ def lambda_handler(event: dict = None, context: dict = None):
         for line in line_stream(s3_object.get()['Body']):
             # log.info(f"line is {line})
             if line.strip():
-                headers = [({"seq": idx + 1, "name": l.strip()})
+                headers = [({"index": idx + 1, "name": l.strip()})
                            for idx, l in enumerate(line.split(split_char))]
                 break
         column_dct = {column_metadata[i]["index"]: column_metadata[i] for i in range(0, len(column_metadata), 1)}
