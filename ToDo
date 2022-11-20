@@ -1,3 +1,24 @@
+FIles with header
+-column count check
+-column ordering check
+-field name match
+-date field format for first 20 records
 
-1. Row Count
-2. Column Count
+
+Create new meta data table for stage bucket meta capture. add additional 3 fiels
+-data validation flag
+-row count
+-column count
+-comment
+-date field format according to mm/dd/yyyy for first 50 records
+
+IF file passes data validation.
+-trigger stageddatadriver lambda
+-capture meta data according to new enhancement and change data validation flag to true
+-in comment field insert successfully validated.
+
+If file fails data validation
+-trigger an sns notification to ETL team
+-capture meta data according to new enhancement and change data validation flag to false
+-in comment field insert y it failed data validation(column count not matched, column order not matched, field name not matched)
+
