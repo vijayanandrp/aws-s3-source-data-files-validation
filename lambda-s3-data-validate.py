@@ -5,6 +5,7 @@ import boto3
 import os
 import logging
 import codecs
+import pandas as pd
 
 file_name = os.path.splitext(os.path.basename(__file__))[0]
 
@@ -25,31 +26,22 @@ def get_logger(name):
     return logging.getLogger(name)
 
 
-
-def compare_order(expected_order, received_columns):
-    for column in received_columns:
-        column_index = column["index"]
-        if column_index in expected_order:
-            expected_result = expected_order[column["index"]]
-            if expected_result["index"] == column["index"] and expected_result["name"] == column["name"]:
-                print(f"Column matching index {column['index']}")
-            else:
-                print(f"column not matching")
-                return False
-        else:
-            print(f"column index not found in result {column_index}")
-            return False
-    return True
-
-
-
+def get_split_char(key):
+    if key.lower().endswith('.tsv'):
+        return '\t'
+    elif key.lower().endswith('.csv'):
+        return ','
+    elif key.lower().endswith('.txt'):
+        return '|'
+    else:
+        return ' '
 
 
 def lambda_handler(event: dict = None, context: dict = None):
     log = get_logger(f"{file_name}.{lambda_handler.__name__}")
     log.info('=' * 30 + " Init " + '=' * 30)
-    log.info(f"event - {event}")
-    log.info(f"context - {context}")
+    log.info(f"[*] event - {event}")
+    log.info(f"[*] context - {context}")
     records = event.get("Records", None)
     if not records:
         log.info(f"[-] No Records found in the events - {event}")
@@ -61,33 +53,24 @@ def lambda_handler(event: dict = None, context: dict = None):
                  for record in records
                  if record.get("s3")]
 
+    s3 = boto3.resource("s3")
+    sample_records = 100
+    records = []
+    column = []
+    with_header = False
     for new_file in new_files:
         key = new_file['key']
-        s3 = boto3.resource("s3")
+        split_char = get_split_char(key)
         s3_object = s3.Object(new_file['bucket'], key)
         line_stream = codecs.getreader("utf-8")
-
-        split_char = '|'
-        if key.lower().endswith('.tsv'):
-            split_char = '\t'
-        elif key.lower().endswith('.csv'):
-            split_char = ','
-        elif key.lower().endswith('.txt'):
-            spit_char = '|'
-
-        headers = None
-
         for line in line_stream(s3_object.get()['Body']):
             # log.info(f"line is {line})
-            if line.strip():
-                headers = [({"seq": idx + 1, "name": l.strip()})
-                           for idx, l in enumerate(line.split(split_char))]
-                break
-        column_dct = {column_metadata[i]["index"]: column_metadata[i] for i in range(0, len(column_metadata), 1)}
-        log.info(f"Headers is {headers}")
-        size_comparison_flag = compare_size(headers)
-        order_comparison_flag = compare_order(column_dct, headers)
-        log.info(f"size comparison flag {size_comparison_flag}")
-        log.info(f"order comparion flag {order_comparison_flag}")
-    log.info('=' * 30 + " Exit " + '=' * 30)
+            if with_header is True and sample_records == 100:
+                column += [value.strip() for value in line.split(split_char)]
+                continue
+            records.append([value.strip() for value in line.split(split_char)])
+            sample_records -= 1
 
+    df = pd.DataFrame(data=records, columns=column)
+    print(df.head())
+    log.info('=' * 30 + " Exit " + '=' * 30)
